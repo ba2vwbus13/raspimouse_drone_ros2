@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'raspimouse_droce_ros2'
+package_name = 'raspimouse_drone_ros2'
 
 setup(
     name=package_name,

@@ -1,6 +1,13 @@
 PC側
+(1)without ros2
 source ~/work/yolov8/bin/activate
 python ~/ros2_ws/src/raspimouse_drone_ros2/controller.py
+
+(2)with ros
+conda deactivate
+source /opt/ros/humble/setup.bash
+source ~/ros2_ws/install setup.bash
+ros2 run raspimouse_drone_ros2 controller
 
 ラズパイマウス側
 ~/RaspberryPiMouse/utils/build_install.bash

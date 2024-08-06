@@ -3,11 +3,12 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 import rclpy
-import drone
+from .drone import DroneControl
+#import drone
 #!/usr/bin/env python3
 def main(args=None):
     # ウェブカメラのキャプチャを開始
-    video_path = 2
+    video_path = 0
     cap = cv2.VideoCapture(video_path)
     img_size = np.array([cap.get(cv2.CAP_PROP_FRAME_WIDTH), cap.get(cv2.CAP_PROP_FRAME_HEIGHT)])
     # Load a pretrained YOLOv8n model
@@ -16,7 +17,8 @@ def main(args=None):
     model = YOLO(model_path)
 
     rclpy.init()
-    drone_obj = drone.DroneControl(img_size)
+    #drone_obj = drone.DroneControl(img_size)
+    drone_obj = DroneControl(img_size)
     rate = drone_obj.create_rate(10)
     # キャプチャがオープンしている間続ける
     while(cap.isOpened() and rclpy.ok()):
