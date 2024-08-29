@@ -9,7 +9,8 @@ class DroneControl(Node):
     def __init__(self, img_size):
         super().__init__('controller')
         self.img_size = img_size
-        self.drone_p = self.drone_v = self.target_p = self.target_v = np.array([-1,-1])
+        self.drone_p = self.target_p = np.array([-1,-1])
+        self.drone_v = self.target_v = np.array([0,0])
         self.movingForward, self.movingAngle = 0.0, 0.0
         self.target_route = self.makeTargetRoute()
         self.target_route_number = 0
@@ -17,11 +18,12 @@ class DroneControl(Node):
         self.prev_time = time.time()
         self.sending_count = 0
         self.pub = self.create_publisher(String, 'controller', 10)
+        dictionaly = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
+        self.detector = cv2.aruco.ArucoDetector(dictionaly)
 
     def makeTargetRoute(self):
         #target_route = np.array([[0.9,0.1], [0.9,0.9], [0.1,0.9], [0.1,0.1], [-1,-1]])           
-        target_route = np.array([[0.1,0.1], [0.16,0.9],[0.33,0.1],[0.5,0.9],[0.66,0.1],
-        [0.84,0.9],[0.9,0.1],[0.9,0.9],[-1,-1]])       
+        target_route = np.array([0,2,7,8,4,-1])       
         return target_route
     
     def getDronePoint(self, detection):       
@@ -46,18 +48,31 @@ class DroneControl(Node):
         else:
             self.recognize = False
 
-    def getNextTarget(self):
-        if np.any(self.target_route[self.target_route_number]<0):
+    def getNextTarget(self,frame):
+        if self.target_route_number == self.target_route.size-1:
             print("goal!")
             return False
-        else:
-            self.target_p = self.target_route[self.target_route_number]
-            self.target_v = self.target_p - self.drone_p
-            target_l = np.linalg.norm(self.target_v, ord=2)
-            if target_l < 0.1 and self.recognize:
-                print("reach target!")
-                self.target_route_number += 1
-            return True
+        self.target_p = self.getAruco(frame)
+        if self.target_p[0] == -1:
+            print("lost target")
+            return False
+        self.target_v = self.target_p - self.drone_p
+        target_l = np.linalg.norm(self.target_v, ord=2)
+        print(target_l)
+        if target_l < 0.13 and self.recognize:
+            print("reach target!")
+            self.target_route_number += 1
+        return True
+    
+    def getAruco(self,frame):
+        self.corners, self.ids, _ = self.detector.detectMarkers(frame)
+        target_id = self.target_route[self.target_route_number]
+        print('target id:', target_id)
+        if self.ids is not None:
+            for id, corner in zip(self.ids, self.corners):
+                if id[0] == target_id:
+                    return (corner[0][0] + corner[0][1] + corner[0][2] + corner[0][3]) / 4 / self.img_size
+        return np.array([-1,-1])
             
     def get_drec(self, theta):
         if theta > 90:
@@ -71,8 +86,7 @@ class DroneControl(Node):
             forward = 0.08
         return forward, angle
             
-    def getMovingDerection(self):
-        ret = self.getNextTarget()
+    def getMovingDerection(self,ret):
         if ret:
             cross = np.cross(self.drone_v, self.target_v)
             inner = np.inner(self.drone_v, self.target_v)
@@ -110,15 +124,17 @@ class DroneControl(Node):
         cyan, magenta, white = (255,255,0), (255,0,255), (255, 255, 255)
 
         target_p = (self.target_p * self.img_size).astype(int)
-        target_v = (self.target_v * self.img_size).astype(int)
-        target_v = (target_v / np.linalg.norm(target_v) * 100).astype(int)
-
         drone_p = (self.drone_p * self.img_size).astype(int)
-        drone_v = (self.drone_v * self.img_size).astype(int)
-        drove_v = (drone_v / np.linalg.norm(drone_v) * 100).astype(int)
 
         cv2.circle(img, tuple(target_p), 30, blue, thickness=-1) #target point
         if self.recognize:
-            cv2.arrowedLine(img, tuple(drone_p), tuple(drone_v+drone_p), white, thickness=5)#drone direction
-            cv2.arrowedLine(img, tuple(drone_p), tuple(target_v+drone_p), magenta, thickness=5)#target direction
+            if self.drone_v[0] != 0:
+                drone_v = (self.drone_v * self.img_size).astype(int)
+                drove_v = (drone_v / np.linalg.norm(drone_v) * 100).astype(int)
+                cv2.arrowedLine(img, tuple(drone_p), tuple(drone_v+drone_p), white, thickness=5)#drone direction
+            if self.target_v[0] != 0:
+                target_v = (self.target_v * self.img_size).astype(int)
+                target_v = (target_v / np.linalg.norm(target_v) * 100).astype(int)
+                cv2.arrowedLine(img, tuple(drone_p), tuple(target_v+drone_p), magenta, thickness=5)#target direction
+        img = cv2.aruco.drawDetectedMarkers(img, self.corners, self.ids)
         return img

@@ -21,6 +21,8 @@ setup(
     entry_points={
         'console_scripts': [
             'controller = raspimouse_drone_ros2.controller:main',
+            'controller_aruco = raspimouse_drone_ros2.controller_aruco:main',
+            'controller_aruco_with_yolov8 = raspimouse_drone_ros2.controller_aruco_with_yolov8:main',
         ],
     },
 )
